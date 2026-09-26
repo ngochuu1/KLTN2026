@@ -1,0 +1,12 @@
+.env
+.env.local
+__pycache__/
+*.py[cod]
+.venv/
+.venv-win/
+node_modules/
+.next/
+.idea/
+.vscode/
+*.swp
+.pytest_cache/
