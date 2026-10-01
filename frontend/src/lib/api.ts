@@ -4,17 +4,18 @@ export class ApiFailure extends Error {
 }
 export interface AuthBridge { getToken: () => string | null; refresh: () => Promise<string>; clear: () => void }
 export function createApiClient(auth: AuthBridge) {
-  return async function request<T>(path: string, options: { method?: string; body?: unknown; protected?: boolean } = {}): Promise<T> {
+  return async function request<T>(path: string, options: { method?: string; body?: unknown; protected?: boolean; download?: boolean } = {}): Promise<T> {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL;
     if (!base) throw new ApiFailure(0, { code: "CONFIGURATION_ERROR", message: "Chưa cấu hình địa chỉ API.", fields: null });
     async function send(token: string | null): Promise<T> {
       let response: Response;
       try {
-        response = await fetch(`${base!.replace(/\/$/, "")}/api/v1${path}`, {
+        const multipart = options.body instanceof FormData;
+        response = await fetch(options.download ? `/api${path}` : `${base!.replace(/\/$/, "")}/api/v1${path}`, {
           method: options.method ?? "GET", credentials: "include", cache: "no-store",
-          headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: options.body ? JSON.stringify(options.body) : undefined,
-          signal: AbortSignal.timeout(15000),
+          headers: { ...(options.body && !multipart ? { "Content-Type": "application/json" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: multipart ? options.body as FormData : options.body ? JSON.stringify(options.body) : undefined,
+          signal: AbortSignal.timeout(multipart || options.download ? 120000 : 15000),
         });
       } catch { throw new ApiFailure(0, { code: "NETWORK_ERROR", message: "Không thể kết nối máy chủ. Vui lòng thử lại.", fields: null }); }
       if (!response.ok) {
@@ -26,6 +27,7 @@ export function createApiClient(auth: AuthBridge) {
         throw new ApiFailure(response.status, error);
       }
       if (response.status === 204) return undefined as T;
+      if (options.download) return await response.blob() as T;
       const payload: { data: T } = await response.json();
       return payload.data;
     }

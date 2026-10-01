@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     object_storage_bucket: str = ""
     object_storage_secure: bool = False
     attachment_max_size_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
+    livekit_url: str = ""
+    livekit_api_key: SecretStr = SecretStr("")
+    livekit_api_secret: SecretStr = SecretStr("")
 
     @field_validator("jwt_secret_key")
     @classmethod

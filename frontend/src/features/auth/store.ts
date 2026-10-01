@@ -1,5 +1,6 @@
 "use client";
 import { createWorkspaceServices } from "@/lib/workspace-services";
+import { createChatServices } from "@/lib/chat-services";
 import { createServices } from "@/lib/services";
 import type { LoginRequest, User } from "@/lib/types";
 type AuthState = { user: User | null; accessToken: string | null; authStatus: "loading" | "authenticated" | "unauthenticated" };
@@ -24,6 +25,8 @@ async function refresh(): Promise<string> {
 }
 export const services = createServices({ getToken: () => state.accessToken, refresh, clear: clearAuth });
 export const workspaceServices = createWorkspaceServices({ getToken: () => state.accessToken, refresh, clear: clearAuth });
+export const chatServices = createChatServices({ getToken: () => state.accessToken, refresh, clear: clearAuth });
+export const chatAuth = { getToken: () => state.accessToken, refresh };
 export const authStore = {
   subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
   getSnapshot: () => state,

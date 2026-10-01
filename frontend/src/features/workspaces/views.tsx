@@ -7,6 +7,7 @@ import { Field, Feedback, formValues, value, useSubmission } from "@/components/
 import { workspaceServices as api } from "@/features/auth/store";
 import { useAuth } from "@/features/auth/provider";
 import type { Workspace, WorkspaceInput, WorkspaceMember } from "@/lib/workspace-types";
+import { WorkspaceChannels } from "@/features/chat/views";
 
 function useLoad<T>(load: () => Promise<T>) {
   const [data, setData] = useState<T | null>(null);
@@ -65,6 +66,7 @@ export function WorkspaceDetail({ id }: { id: string }) {
   if (!state.data) return <><Back /><LoadState {...state} /></>;
   const workspace = state.data;
   return <><Back /><h1>{workspace.name}</h1><p className="description">{workspace.description || "Chưa có mô tả."}</p><p>Vai trò của bạn: <strong>{workspace.role}</strong></p>
+    <WorkspaceChannels key={workspace.id} workspace={workspace} />
     {workspace.role !== "MEMBER" && <>{editing ? <WorkspaceForm workspace={workspace} cancel={() => setEditing(false)} save={async body => { state.setData(await api.update(id, body)); setEditing(false); submit.setSuccess("Đã cập nhật Workspace."); }} /> : <button onClick={() => { submit.reset(); setEditing(true); }}>Chỉnh sửa Workspace</button>}<Invite id={id} /></>}
     <Members workspace={workspace} changed={leavePage} /><Feedback {...submit} />
     {workspace.role === "OWNER" ? <><p>OWNER không thể rời Workspace.</p><button disabled={submit.pending} onClick={() => { if (window.confirm(`Xóa Workspace “${workspace.name}”? Tất cả thành viên sẽ mất quyền truy cập.`)) void submit.run(async () => { await api.remove(id); leavePage(); }); }}>Xóa Workspace</button></> : <button disabled={submit.pending} onClick={() => { if (window.confirm(`Rời Workspace “${workspace.name}”?`)) void submit.run(async () => { await api.leave(id); leavePage(); }); }}>Rời Workspace</button>}

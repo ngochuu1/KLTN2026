@@ -26,3 +26,32 @@ section { margin: 28px 0; border-top: 1px solid #d5dfeb; padding-top: 20px; }
 .members select { margin: 8px 0 12px; }
 .description { white-space: pre-wrap; overflow-wrap: anywhere; }
 textarea:focus-visible, select:focus-visible { outline: 3px solid #d78d00; outline-offset: 3px; }
+main:has(.workspace-chat) { max-width: 1180px; }
+.workspace-chat { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; }
+.channel-sidebar h2, .channel-header h2 { margin-top: 0; overflow-wrap: anywhere; }
+.channel-sidebar nav { display: grid; gap: 8px; }
+.channel-sidebar nav button { text-align: left; background: #edf3fa; color: #192b40; overflow-wrap: anywhere; }
+.channel-sidebar nav button[aria-current] { background: #245baf; color: white; }
+.channel-sidebar small { display: block; margin-top: 4px; font-weight: normal; }
+.channel-main { min-width: 0; }
+.channel-header { border-bottom: 1px solid #d5dfeb; }
+.message-list { list-style: none; padding: 0; max-height: 560px; overflow: auto; overflow-anchor: auto; }
+.chat-message { padding: 18px 4px; border-bottom: 1px solid #d5dfeb; overflow-wrap: anywhere; }
+.message-meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.message-meta time, .message-meta small, .connection-status { color: #53677e; font-size: .85rem; }
+.chat-message button { padding: 6px 10px; font-size: .85rem; }
+.message-actions { margin: 8px 0; }
+.attachment { display: block; max-width: 100%; overflow-wrap: anywhere; margin: 8px 0; }
+.reactions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.reactions span { border-radius: 12px; padding: 4px 10px; background: #edf3fa; }
+.reaction-actions { display: flex; gap: 4px; }
+summary { cursor: pointer; }
+.message-composer { border-top: 1px solid #d5dfeb; padding-top: 16px; }
+.message-composer input { margin-bottom: 12px; }
+.message-composer textarea { margin-bottom: 12px; }
+@media (max-width: 700px) {
+  .workspace-chat { grid-template-columns: 1fr; }
+  .channel-sidebar nav { display: flex; flex-wrap: wrap; }
+  .channel-sidebar nav button { flex: 1 1 130px; }
+  .message-list { max-height: 420px; }
+}

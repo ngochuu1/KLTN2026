@@ -115,30 +115,41 @@ Terminal PowerShell khác:
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/v1/health
 ```
 
-### MinIO standalone trên Windows (Phase 3B3)
+### MinIO Docker trên Windows (Phase 3B3)
 
-Phase 3B3 không yêu cầu Docker cho Object Storage. Cài MinIO Server và MinIO
-Client (`mc`) trực tiếp trên Windows, tạo một bucket private, rồi cấu hình Backend
-qua các biến `OBJECT_STORAGE_*` trong `backend/.env`.
+Backend chạy trực tiếp trên Windows; MinIO chạy trong Docker Desktop bằng
+Compose tại project root. Giữ PostgreSQL hiện có. Docker Desktop quản lý named
+volume `minio_data` trong data location đã cấu hình `D:\DockerData`; không tạo
+thư mục dữ liệu MinIO trong project.
 
-PowerShell, thay các giá trị credential mẫu bằng credential local của bạn:
+Trong `backend/.env` (được gitignore), cấu hình các biến `OBJECT_STORAGE_*`
+theo `.env.example`, thay credential mẫu bằng credential local. Compose dùng
+cùng access key/secret key để khởi tạo MinIO. Endpoint cho backend trên host là
+`http://127.0.0.1:9000`, `OBJECT_STORAGE_SECURE=false`, bucket `chat-attachments`.
+Nếu đổi `MINIO_API_PORT`, cập nhật port trong endpoint tương ứng.
+
+PowerShell tại project root, sau khi Docker Engine hoạt động:
 
 ```powershell
-$env:MINIO_ROOT_USER = "<local-access-key>"
-$env:MINIO_ROOT_PASSWORD = "<local-secret-key>"
-minio.exe server D:\minio-data --console-address ":9001"
+docker compose --env-file backend/.env config --quiet
+docker compose --env-file backend/.env up -d minio minio-init
+docker compose --env-file backend/.env ps -a
 ```
 
-PowerShell khác:
+Service `minio` phải healthy và `minio-init` phải exit 0. Initializer chờ healthcheck,
+tạo bucket idempotent và tắt anonymous access. Console: `http://127.0.0.1:9001`.
+Các port chỉ bind loopback. Image sử dụng registry Quay chính thức của MinIO:
+[server documentation](https://github.com/minio/minio/blob/master/docs/docker/README.md),
+[client publishing script](https://github.com/minio/mc/blob/master/docker-buildx.sh).
 
-```powershell
-mc.exe alias set local http://127.0.0.1:9000 "<local-access-key>" "<local-secret-key>"
-mc.exe mb --ignore-existing local/chat-attachments
-mc.exe anonymous set none local/chat-attachments
-```
+Sau restart máy, bật Docker Desktop và chạy lại lệnh `up` ở trên; named volume
+được giữ lại. Không chạy `down -v` nếu cần giữ dữ liệu. Khởi động backend theo
+phần Windows ở trên sau khi kiểm tra Python/venv và PostgreSQL hoạt động.
+StorageService dùng boto3/S3v4, region `us-east-1`, URL download ký trong 300 giây;
+không cần thêm biến region hoặc thay storage abstraction.
 
-`OBJECT_STORAGE_ENDPOINT` quyết định endpoint thực tế; business code chỉ dùng
-S3-compatible `StorageService` và không phụ thuộc cách MinIO được chạy.
+Cấu hình Compose chưa đồng nghĩa live verification PASS. Xem trạng thái thực tế
+ở [Phase 3B3 verification](docs/progress/phase-3b3-verification.md).
 
 ## Quy ước Phase 1A
 
@@ -244,6 +255,33 @@ Không thay đổi migration Phase 1A. Kết quả verification 1B nằm tại
 
 ## Trạng thái hiện tại
 
+### LiveKit local — Phase 4C
+
+Trong `backend/.env`, thêm `LIVEKIT_URL=ws://localhost:7880`,
+`LIVEKIT_API_KEY` (chuỗi ngẫu nhiên) và `LIVEKIT_API_SECRET` (ngẫu nhiên tối thiểu
+32 ký tự); giữ các giá trị thật ngoài Git. Backend và LiveKit dùng cùng key/secret.
+Khởi động Docker Desktop rồi chạy từ root:
+
+```powershell
+docker compose --env-file backend/.env -f docker-compose.livekit.yml config --quiet
+docker compose --env-file backend/.env -f docker-compose.livekit.yml up -d livekit
+```
+
+Compose này chỉ phục vụ browser trên cùng máy: signaling 7880, RTC TCP 7881,
+UDP 7882 đều bind loopback. Khởi động lại backend sau khi cấu hình; chạy
+`npm install` ở frontend và build với `NEXT_PUBLIC_API_BASE_URL` như trước.
+Browser cần localhost hoặc HTTPS để cấp quyền thiết bị; môi trường ngoài local
+cần cấu hình WSS/TLS, địa chỉ ICE và TURN phù hợp.
+Tham khảo [LiveKit tokens](https://docs.livekit.io/home/server/generating-tokens)
+và [SDK media](https://docs.livekit.io/reference/client-sdk-js/index.html).
+
+Kiểm tra thật bằng hai tài khoản thành viên trong hai browser contexts: cùng join,
+A bật mic/camera → B nhận audio/video, A tắt → B thấy OFF, rời/chuyển Channel →
+track dừng. Mỗi user có một media identity trong room; tab mới có thể thay kết nối cũ.
+Trạng thái kiểm tra hiện tại: [Phase 4C handoff](docs/progress/phase-4c-verification.md).
+
+### Tiến độ
+
 - Phase 1A: DONE
 - Phase 1B: DONE
 - Phase 1C: DONE
@@ -259,8 +297,17 @@ Không thay đổi migration Phase 1A. Kết quả verification 1B nằm tại
 - Phase 3A: DONE
 - Phase 3B1: DONE
 - Phase 3B2: DONE
-- Current: Phase 3B3 — Chat Attachment/Object Storage
-- Latest handoff: [docs/progress/phase-3b2-verification.md](docs/progress/phase-3b2-verification.md)
+- Phase 3B3: DONE
+- Phase 3C: DONE
+- Phase 3D: DONE
+- Phase 3E: DONE
+- Channel & Chat UC15–UC21: COMPLETE
+- Phase 4A: DONE — Study Room foundation (join/leave/presence)
+- Study Room presence chạy với **một backend worker**, lưu trong bộ nhớ; restart xóa presence.
+- Phase 4B: DONE — microphone/camera state và controls (chưa truyền media)
+- Phase 4C: DONE — LiveKit/WebRTC media; live smoke 5/5 PASS (Chrome synthetic capture).
+- Next: Phase 4D — chưa bắt đầu.
+- Latest handoff: [docs/progress/phase-4c-verification.md](docs/progress/phase-4c-verification.md)
 
 Tham khảo cơ chế framework: [FastAPI exception handlers](https://fastapi.tiangolo.com/tutorial/handling-errors/),
 [Starlette cookie responses](https://starlette.dev/responses/).
